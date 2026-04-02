@@ -1,0 +1,13 @@
+{
+  "LOGIN_BUTTON": "Login",
+  "WELCOME_FMT": "Welcome, {0}!",
+  "menu": {
+    "file": "File",
+    "edit": "Edit",
+    "help": "Help"
+  },
+  "dialog": {
+    "confirm": "Are you sure?",
+    "delete_fmt": "Delete {0}? This action cannot be undone."
+  }
+}

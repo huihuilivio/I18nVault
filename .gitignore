@@ -1,0 +1,8 @@
+checks.json
+build/
+generated/
+.vscode/
+.cache/
+.idea/
+*.log
+*.trs

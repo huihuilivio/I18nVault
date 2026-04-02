@@ -1,0 +1,13 @@
+{
+  "LOGIN_BUTTON": "登录",
+  "WELCOME_FMT": "欢迎, {0}!",
+  "menu": {
+    "file": "文件",
+    "edit": "编辑",
+    "help": "帮助"
+  },
+  "dialog": {
+    "confirm": "确定吗？",
+    "delete_fmt": "删除 {0}？此操作无法撤销。"
+  }
+}
