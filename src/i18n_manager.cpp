@@ -4,7 +4,6 @@
 #include "crypto/sm4_gcm.h"
 #include "nlohmann/json.hpp"
 
-#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -96,7 +95,7 @@ bool decrypt_trs_to_json_text(const std::string& path, const uint8_t key[SM4_GCM
         return false;
     }
 
-    if (off + iv_len + tag_len + ct_len != blob.size())
+    if (static_cast<uint64_t>(off) + iv_len + tag_len + ct_len != blob.size())
     {
         std::cerr << "Invalid trs length fields: " << path << std::endl;
         return false;
@@ -129,9 +128,6 @@ std::vector<std::string> collect_required_keys()
         if (k && k[0] != '\0')
             keys.emplace_back(k);
     }
-
-    std::sort(keys.begin(), keys.end());
-    keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
     return keys;
 }
 }  // anonymous namespace
@@ -170,7 +166,11 @@ bool I18nManager::setTrsCryptoConfig(const TrsCryptoConfig& config)
 void I18nManager::clearTrsCryptoConfig()
 {
     std::unique_lock lock(pImpl_->mu);
-    pImpl_->trs_key.reset();
+    if (pImpl_->trs_key.has_value())
+    {
+        secure_wipe(pImpl_->trs_key->data(), pImpl_->trs_key->size());
+        pImpl_->trs_key.reset();
+    }
     pImpl_->trs_aad.clear();
 }
 
@@ -252,23 +252,34 @@ bool I18nManager::reload(const std::string& path)
                 const char* key_hex = std::getenv("I18N_TRS_KEY_HEX");
                 if (!key_hex)
                     key_hex = std::getenv("I18N_SM4_KEY_HEX");
-
-                uint8_t env_key[SM4_GCM_KEY_SIZE] = {};
-                if (hex_parse(key_hex, env_key, SM4_GCM_KEY_SIZE) != 0)
+                if (!key_hex)
                 {
                     std::cerr << "TRS key is not configured. Call setTrsCryptoConfig() or set I18N_TRS_KEY_HEX."
                               << std::endl;
                     return false;
                 }
 
+                uint8_t env_key[SM4_GCM_KEY_SIZE] = {};
+                if (hex_parse(key_hex, env_key, SM4_GCM_KEY_SIZE) != 0)
+                {
+                    std::cerr << "TRS key hex is invalid (must be 32 hex chars)." << std::endl;
+                    secure_wipe(env_key, sizeof(env_key));
+                    return false;
+                }
+
                 key.assign(env_key, env_key + SM4_GCM_KEY_SIZE);
+                secure_wipe(env_key, sizeof(env_key));
                 const char* aad_env = std::getenv("I18N_TRS_AAD");
                 aad                 = aad_env ? aad_env : "";
             }
 
             std::string json_text;
             if (!decrypt_trs_to_json_text(path, key.data(), aad, json_text))
+            {
+                secure_wipe(key.data(), key.size());
                 return false;
+            }
+            secure_wipe(key.data(), key.size());
             j = nlohmann::json::parse(json_text);
         }
         else

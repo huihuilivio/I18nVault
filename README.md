@@ -124,7 +124,7 @@ auto& mgr = I18nVault::I18nManager::instance();
 
 // 设置解密参数
 mgr.setTrsCryptoConfig({
-    .key_hex = "00112233445566778899AABBCCDDEEFF",  // 32 hex = 128-bit SM4 key
+    .key_hex = "00112233445566778899AABBCCDDEEFF",  // ℹ️ 仅为示例，生产环境必须替换为安全密钥
     .aad     = "i18n:v1"                             // 附加认证数据
 });
 

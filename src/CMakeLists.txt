@@ -7,7 +7,7 @@ add_library(I18nVaultCore
 target_include_directories(I18nVaultCore
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/generated>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/exports>
         $<INSTALL_INTERFACE:include/I18nVault>
     PRIVATE

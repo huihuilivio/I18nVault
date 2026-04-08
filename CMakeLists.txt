@@ -14,14 +14,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # ---- Auto-generate i18n_keys.h ----
 add_custom_command(
-    OUTPUT ${CMAKE_SOURCE_DIR}/generated/i18n_keys.h
+    OUTPUT ${CMAKE_BINARY_DIR}/generated/i18n_keys.h
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys.py
             ${CMAKE_SOURCE_DIR}/i18n/en_US.json
-            ${CMAKE_SOURCE_DIR}/generated/i18n_keys.h
+            ${CMAKE_BINARY_DIR}/generated/i18n_keys.h
     DEPENDS ${CMAKE_SOURCE_DIR}/i18n/en_US.json
             ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys.py
 )
-add_custom_target(i18n_keys ALL DEPENDS ${CMAKE_SOURCE_DIR}/generated/i18n_keys.h)
+add_custom_target(i18n_keys ALL DEPENDS ${CMAKE_BINARY_DIR}/generated/i18n_keys.h)
 
 # ---- Subdirectories ----
 add_subdirectory(tools)

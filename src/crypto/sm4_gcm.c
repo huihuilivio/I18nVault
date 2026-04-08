@@ -8,11 +8,22 @@
 
 #include <string.h>
 
-static void secure_wipe(void* p, size_t len)
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+void secure_wipe(void* p, size_t len)
 {
+#if defined(_WIN32)
+    SecureZeroMemory(p, len);
+#elif defined(__STDC_LIB_EXT1__) || (defined(__STDC_WANT_LIB_EXT1__) && __STDC_WANT_LIB_EXT1__)
+    memset_s(p, len, 0, len);
+#else
+    /* Fallback: volatile pointer trick */
     volatile uint8_t* vp = (volatile uint8_t*)p;
     while (len--)
         *vp++ = 0;
+#endif
 }
 
 int sm4_gcm_encrypt(const uint8_t key[SM4_GCM_KEY_SIZE], const uint8_t* iv, size_t iv_len, const uint8_t* aad,

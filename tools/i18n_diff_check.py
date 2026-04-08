@@ -59,20 +59,38 @@ def load_json(path):
         print(f"[ERROR] JSON parse failed: {path}\n{e}")
         sys.exit(1)
 
+
+def flatten_json(obj, prefix=""):
+    """Flatten nested JSON into dotted-key dict (matches I18nManager::flatten)."""
+    result = {}
+    for key, value in obj.items():
+        flat_key = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            result.update(flatten_json(value, flat_key))
+        else:
+            result[flat_key] = value
+    return result
+
+
 def diff_keys(base, target):
-    base_keys = set(base.keys())
-    target_keys = set(target.keys())
+    base_flat = flatten_json(base)
+    target_flat = flatten_json(target)
+    base_keys = set(base_flat.keys())
+    target_keys = set(target_flat.keys())
 
     missing = base_keys - target_keys     # target 缺少
     extra = target_keys - base_keys       # target 多出
 
     return missing, extra
 
+
 def check_value_type(base, target):
+    base_flat = flatten_json(base)
+    target_flat = flatten_json(target)
     mismatch = []
-    for k in base.keys():
-        if k in target:
-            if type(base[k]) != type(target[k]):
+    for k in base_flat:
+        if k in target_flat:
+            if type(base_flat[k]) != type(target_flat[k]):
                 mismatch.append(k)
     return mismatch
 
@@ -89,7 +107,8 @@ def write_missing_template(base, target_file, missing_keys):
     template_path = target_path.with_name(f"{target_path.stem}.missing.template.json")
 
     # Use base locale values in the template for quick translation fill-in.
-    template_data = {k: base[k] for k in sorted(missing_keys)}
+    base_flat = flatten_json(base)
+    template_data = {k: base_flat[k] for k in sorted(missing_keys)}
     template_path.write_text(
         json.dumps(template_data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

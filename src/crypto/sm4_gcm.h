@@ -24,6 +24,9 @@ extern "C"
                         size_t aad_len, const uint8_t* ct, size_t ct_len, uint8_t* pt,
                         const uint8_t tag[SM4_GCM_TAG_SIZE]);
 
+    /* Securely zero memory — resists compiler dead-store elimination. */
+    void secure_wipe(void* p, size_t len);
+
 #ifdef __cplusplus
 }
 #endif
