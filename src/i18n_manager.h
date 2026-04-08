@@ -2,6 +2,7 @@
 #include "i18n_keys.h"
 #include "i18n_vault_export.h"
 
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -109,6 +110,28 @@ public:
 
     /// Load or reload an i18n file (.json or .trs).
     bool reload(const std::string& path);
+
+    // ---- Hot-Reload (File Watching) ----
+
+    /// Callback fired after each hot-reload attempt.
+    /// @param success  true if reload succeeded
+    /// @param path     the watched file path
+    using ReloadCallback = std::function<void(bool success, const std::string& path)>;
+
+    /// Start watching a file for changes; auto-reloads when modified.
+    /// @param path         i18n file to watch (.json or .trs)
+    /// @param interval_ms  polling interval in milliseconds (default 1000)
+    /// @return true if watching started successfully
+    bool watchFile(const std::string& path, unsigned interval_ms = 1000);
+
+    /// Stop the file watcher (no-op if not watching).
+    void stopWatching();
+
+    /// @return true if currently watching a file.
+    bool isWatching() const;
+
+    /// Register a callback invoked on each hot-reload (from watcher thread).
+    void setReloadCallback(ReloadCallback cb);
 
     /// Translate an enum key, replacing {0}, {1}, ... with given arguments (Runtime).
     std::string translate(I18nKey key, std::initializer_list<std::string> args = {});

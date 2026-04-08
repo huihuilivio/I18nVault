@@ -7,11 +7,17 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -141,10 +147,21 @@ struct I18nManager::Impl
     std::unordered_map<std::string, std::string> data;
     std::optional<std::vector<uint8_t>>          trs_key;
     std::string                                  trs_aad;
+
+    // ---- hot-reload state ----
+    std::thread              watcher_thread;
+    std::atomic<bool>        watcher_running{false};
+    std::mutex               watcher_mu;
+    std::condition_variable  watcher_cv;
+    std::string              watched_path;
+    ReloadCallback           reload_cb;
 };
 
 I18nManager::I18nManager() : pImpl_(std::make_unique<Impl>()) {}
-I18nManager::~I18nManager() = default;
+I18nManager::~I18nManager()
+{
+    stopWatching();
+}
 
 bool I18nManager::setTrsCryptoConfig(const TrsCryptoConfig& config)
 {
@@ -172,6 +189,92 @@ void I18nManager::clearTrsCryptoConfig()
         pImpl_->trs_key.reset();
     }
     pImpl_->trs_aad.clear();
+}
+
+// ---- Hot-Reload Implementation ----
+
+bool I18nManager::watchFile(const std::string& path, unsigned interval_ms)
+{
+    namespace fs = std::filesystem;
+
+    stopWatching();  // stop any existing watcher
+
+    std::error_code ec;
+    auto            initial_time = fs::last_write_time(path, ec);
+    if (ec)
+    {
+        std::cerr << "watchFile: cannot stat " << path << ": " << ec.message() << std::endl;
+        return false;
+    }
+
+    pImpl_->watched_path    = path;
+    pImpl_->watcher_running = true;
+
+    pImpl_->watcher_thread = std::thread([this, path, interval_ms, initial_time]() {
+        namespace fs       = std::filesystem;
+        auto last_mod_time = initial_time;
+
+        while (pImpl_->watcher_running.load(std::memory_order_relaxed))
+        {
+            {
+                std::unique_lock lk(pImpl_->watcher_mu);
+                if (pImpl_->watcher_cv.wait_for(
+                        lk, std::chrono::milliseconds(interval_ms),
+                        [this] { return !pImpl_->watcher_running.load(std::memory_order_relaxed); }))
+                {
+                    break;  // stop requested
+                }
+            }
+
+            std::error_code ec2;
+            auto            cur_time = fs::last_write_time(path, ec2);
+            if (ec2)
+                continue;  // file temporarily unavailable, retry next cycle
+
+            if (cur_time != last_mod_time)
+            {
+                last_mod_time = cur_time;
+                bool ok       = reload(path);
+
+                ReloadCallback cb;
+                {
+                    std::shared_lock lk(pImpl_->mu);
+                    cb = pImpl_->reload_cb;
+                }
+                if (cb)
+                    cb(ok, path);
+            }
+        }
+    });
+
+    return true;
+}
+
+void I18nManager::stopWatching()
+{
+    if (!pImpl_->watcher_running.exchange(false))
+        return;
+
+    {
+        std::lock_guard lk(pImpl_->watcher_mu);
+        pImpl_->watcher_cv.notify_all();
+    }
+
+    if (pImpl_->watcher_thread.joinable())
+        pImpl_->watcher_thread.join();
+
+    pImpl_->watched_path.clear();
+}
+
+bool I18nManager::isWatching() const
+{
+    return pImpl_->watcher_running.load(std::memory_order_relaxed);
+}
+
+void I18nManager::setReloadCallback(ReloadCallback cb)
+{
+    std::unique_lock lock(pImpl_->mu);
+    pImpl_->reload_cb = std::move(cb);
 }
 
 I18nManager& I18nManager::instance()
@@ -317,3 +420,4 @@ bool I18nManager::reload(const std::string& path)
 }
 
 }  // namespace I18nVault
+// (end of file — hot-reload methods are above reload())
