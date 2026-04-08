@@ -7,19 +7,6 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(CTest)
 include(GNUInstallDirs)
 
-# ---- Download nlohmann/json (configure-time) ----
-set(NLOHMANN_DIR "${CMAKE_SOURCE_DIR}/src")
-if(NOT EXISTS "${NLOHMANN_DIR}/nlohmann/json.hpp")
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/download_nlohmann.py
-                ${NLOHMANN_DIR}
-        RESULT_VARIABLE _DL_RESULT
-    )
-    if(NOT _DL_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to download nlohmann/json")
-    endif()
-endif()
-
 # ---- Auto-generate i18n_keys.h ----
 add_custom_command(
     OUTPUT ${CMAKE_SOURCE_DIR}/generated/i18n_keys.h

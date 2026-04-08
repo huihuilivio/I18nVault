@@ -5,7 +5,6 @@ target_include_directories(I18nVaultCore
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/generated>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/nlohmann>
         $<INSTALL_INTERFACE:include/I18nVault>
 )
 target_link_libraries(I18nVaultCore PRIVATE I18nVaultCrypto)

@@ -162,7 +162,6 @@ tools/
   i18n_diff_check.py            # 多语言 key 一致性校验
   gen_trs_files.py              # 批量生成 TRS
   encrypt_i18n.c                # 加解密 CLI
-  download_nlohmann.py          # 下载 nlohmann/json
 ```
 
 ## 安装产物布局
