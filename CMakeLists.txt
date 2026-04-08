@@ -38,7 +38,7 @@ install(FILES ${CMAKE_BINARY_DIR}/exports/i18n_vault_export.h
 install(FILES tools/gen_i18n_keys.py      DESTINATION ${CMAKE_INSTALL_DATADIR}/I18nVault/tools)
 
 # Libraries
-install(TARGETS I18nVaultCore I18nVaultCrypto
+install(TARGETS I18nVaultCore
     EXPORT  I18nVaultTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

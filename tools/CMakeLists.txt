@@ -1,5 +1,6 @@
 add_executable(i18n_crypto_cli encrypt_i18n.c)
 target_link_libraries(i18n_crypto_cli PRIVATE I18nVaultCrypto)
+# I18nVaultCrypto is an OBJECT lib — its .o files are linked in directly
 
 # ---- Build-time TRS generation ----
 set(I18N_TRS_KEY_HEX "00112233445566778899AABBCCDDEEFF" CACHE STRING "SM4-GCM key hex for build-time TRS generation")

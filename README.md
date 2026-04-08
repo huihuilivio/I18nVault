@@ -149,7 +149,7 @@ src/
   i18n_manager.h                # 公共头文件（pImpl）
   i18n_manager.cpp              # 实现
   crypto/
-    CMakeLists.txt              # I18nVaultCrypto 静态库（内部）
+    CMakeLists.txt              # SM4-GCM 加密源文件（编译进 Core）
     sm4.c / sm4.h               # SM4 分组加密
     gcm.c / gcm.h               # GCM 模式
     sm4_gcm.c / sm4_gcm.h       # SM4-GCM 一体化接口
@@ -181,8 +181,7 @@ tools/
   share/I18nVault/tools/
     gen_i18n_keys.py            # key 枚举生成脚本
   lib/
-    I18nVaultCore.lib           # 核心库（静态时为完整库，动态时为导入库）
-    I18nVaultCrypto.lib         # 加密库（内部依赖，无公共头文件）
+    I18nVaultCore.lib           # 核心库（含加密，静态时为完整库，动态时为导入库）
     cmake/I18nVault/
       I18nVaultConfig.cmake
       I18nVaultConfigVersion.cmake
@@ -196,8 +195,7 @@ tools/
 
 | 目标 | 类型 | 说明 |
 |------|------|------|
-| `I18nVaultCore` | 静态库 / 动态库 | i18n 核心库（由 `BUILD_SHARED_LIBS` 控制） |
-| `I18nVaultCrypto` | 静态库 | SM4-GCM 加密（内部） |
+| `I18nVaultCore` | 静态库 / 动态库 | i18n 核心库（含 SM4-GCM 加密，由 `BUILD_SHARED_LIBS` 控制） |
 | `i18n_crypto_cli` | 可执行 | JSON/TRS 加解密 CLI |
 | `i18n_test` | 可执行 | 回归测试 |
 | `i18n_keys` | 自定义 | 生成枚举头文件 |
