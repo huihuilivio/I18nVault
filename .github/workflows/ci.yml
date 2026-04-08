@@ -11,13 +11,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            cli_dir: build/tools
+            cli_dir: build/bin
             exe_ext: ""
           - os: macos-latest
-            cli_dir: build/tools
+            cli_dir: build/bin
             exe_ext: ""
           - os: windows-latest
-            cli_dir: build/tools/Release
+            cli_dir: build/bin/Release
             exe_ext: ".exe"
     runs-on: ${{ matrix.os }}
     steps:
@@ -40,6 +40,13 @@ jobs:
         shell: bash
         run: |
           ctest --test-dir build -C Release --output-on-failure
+
+      - name: Build & test shared library
+        shell: bash
+        run: |
+          cmake -S . -B build_shared -DBUILD_SHARED_LIBS=ON
+          cmake --build build_shared --config Release
+          ctest --test-dir build_shared -C Release --output-on-failure
 
       - name: Verify build-generated TRS artifacts
         shell: bash
@@ -75,6 +82,7 @@ jobs:
           from pathlib import Path
           required = [
               "include/I18nVault/i18n_manager.h",
+              "include/I18nVault/i18n_vault_export.h",
               "share/I18nVault/tools/gen_i18n_keys.py",
               "lib/cmake/I18nVault/I18nVaultConfig.cmake",
               "lib/cmake/I18nVault/I18nVaultTargets.cmake",

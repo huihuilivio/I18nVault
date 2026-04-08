@@ -1,5 +1,5 @@
 checks.json
-build/
+build*/
 generated/
 .vscode/
 .cache/

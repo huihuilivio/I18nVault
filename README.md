@@ -23,6 +23,13 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
+构建动态库（默认静态库）：
+
+```bash
+cmake -S . -B build -DBUILD_SHARED_LIBS=ON
+cmake --build build --config Release
+```
+
 ### 运行测试
 
 ```bash
@@ -138,7 +145,7 @@ CMakeLists.txt                  # 顶层：项目设置 + install + CPack
 cmake/
   I18nVaultConfig.cmake.in      # find_package() 模板
 src/
-  CMakeLists.txt                # I18nVaultCore 静态库
+  CMakeLists.txt                # I18nVaultCore 库（静态/动态）
   i18n_manager.h                # 公共头文件（pImpl）
   i18n_manager.cpp              # 实现
   crypto/
@@ -170,10 +177,11 @@ tools/
 <prefix>/
   include/I18nVault/
     i18n_manager.h              # 公共头文件
+    i18n_vault_export.h         # DLL 导出宏（自动生成）
   share/I18nVault/tools/
     gen_i18n_keys.py            # key 枚举生成脚本
   lib/
-    I18nVaultCore.lib           # 核心库
+    I18nVaultCore.lib           # 核心库（静态时为完整库，动态时为导入库）
     I18nVaultCrypto.lib         # 加密库（内部依赖，无公共头文件）
     cmake/I18nVault/
       I18nVaultConfig.cmake
@@ -181,13 +189,14 @@ tools/
       I18nVaultTargets.cmake
   bin/
     i18n_crypto_cli             # 加解密 CLI 工具
+    I18nVaultCore.dll           # 动态库（仅 BUILD_SHARED_LIBS=ON 时）
 ```
 
 ## CMake 目标
 
 | 目标 | 类型 | 说明 |
 |------|------|------|
-| `I18nVaultCore` | 静态库 | i18n 核心库 |
+| `I18nVaultCore` | 静态库 / 动态库 | i18n 核心库（由 `BUILD_SHARED_LIBS` 控制） |
 | `I18nVaultCrypto` | 静态库 | SM4-GCM 加密（内部） |
 | `i18n_crypto_cli` | 可执行 | JSON/TRS 加解密 CLI |
 | `i18n_test` | 可执行 | 回归测试 |
@@ -213,6 +222,7 @@ tools/
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
+| `BUILD_SHARED_LIBS` | `OFF` | 设为 `ON` 时将 I18nVaultCore 构建为动态库 |
 | `I18N_TRS_KEY_HEX` | `00112233...FF` | 32 hex 字符 SM4 密钥 |
 | `I18N_TRS_AAD` | `i18n:v1` | 附加认证数据 |
 

@@ -7,6 +7,11 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(CTest)
 include(GNUInstallDirs)
 
+option(BUILD_SHARED_LIBS "Build I18nVaultCore as a shared library" OFF)
+
+# Put all binaries (exe + dll) in the same directory so tests find shared libs
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 # ---- Auto-generate i18n_keys.h ----
 add_custom_command(
     OUTPUT ${CMAKE_SOURCE_DIR}/generated/i18n_keys.h
@@ -26,6 +31,8 @@ add_subdirectory(test)
 # ---- Install rules ----
 # Public headers
 install(FILES src/i18n_manager.h          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/I18nVault)
+install(FILES ${CMAKE_BINARY_DIR}/exports/i18n_vault_export.h
+                                          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/I18nVault)
 
 # Key generation script (consumers generate i18n_keys.h from their own JSON)
 install(FILES tools/gen_i18n_keys.py      DESTINATION ${CMAKE_INSTALL_DATADIR}/I18nVault/tools)
@@ -35,6 +42,7 @@ install(TARGETS I18nVaultCore I18nVaultCrypto
     EXPORT  I18nVaultTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 # CLI tool

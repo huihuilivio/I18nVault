@@ -1,5 +1,6 @@
 #pragma once
 #include "i18n_keys.h"
+#include "i18n_vault_export.h"
 
 #include <initializer_list>
 #include <memory>
@@ -8,7 +9,7 @@
 namespace I18nVault
 {
 
-class I18nManager
+class I18NVAULT_API I18nManager
 {
 public:
     // ---- Public API ----
