@@ -94,18 +94,18 @@ int main()
         return 1;
     }
 
-    // Verify translateFmt with {0} placeholder
-    if (mgr.translateFmt(I18nVault::I18nKey::WELCOME_FMT, {"Alice"}) != "Welcome, Alice!")
+    // Verify translate with {0} placeholder
+    if (mgr.translate(I18nVault::I18nKey::WELCOME_FMT, {"Alice"}) != "Welcome, Alice!")
     {
-        std::cerr << "[FAIL] translateFmt WELCOME_FMT mismatch" << std::endl;
+        std::cerr << "[FAIL] translate WELCOME_FMT mismatch" << std::endl;
         return 1;
     }
 
-    // Verify I18nVault_TR_FMT macro
-    if (I18nVault_TR_FMT(I18nVault::I18nKey::DIALOG_DELETE_FMT, "photo.jpg") !=
+    // Verify I18nVault_TR macro with format args
+    if (I18nVault_TR(I18nVault::I18nKey::DIALOG_DELETE_FMT, "photo.jpg") !=
         "Delete photo.jpg? This action cannot be undone.")
     {
-        std::cerr << "[FAIL] I18nVault_TR_FMT DIALOG_DELETE_FMT mismatch" << std::endl;
+        std::cerr << "[FAIL] I18nVault_TR format DIALOG_DELETE_FMT mismatch" << std::endl;
         return 1;
     }
 

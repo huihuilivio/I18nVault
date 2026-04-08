@@ -76,12 +76,12 @@ auto& mgr = I18nVault::I18nManager::instance();
 // 加载 JSON 语言文件
 mgr.reload("i18n/en_US.json");
 
-// 用枚举 key 翻译
-std::string text = mgr.translate(I18nVault::I18nKey::LOGIN_BUTTON);
+// 使用宏翻译
+std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
 // => "Login"
 
-// 或使用便捷宏
-std::string text2 = I18nVault_TR(I18nVault::I18nKey::MENU_FILE);
+// 或直接调用方法
+std::string text2 = mgr.translate(I18nVault::I18nKey::MENU_FILE);
 // => "File"
 ```
 
@@ -99,13 +99,15 @@ JSON 中使用 `{0}` `{1}` 等占位符：
 ```
 
 ```cpp
-// 方法调用
-std::string msg = mgr.translateFmt(I18nVault::I18nKey::WELCOME_FMT, {"Alice"});
+// 使用宏（推荐）
+std::string msg = I18nVault_TR(I18nVault::I18nKey::WELCOME_FMT, "Alice");
 // => "Welcome, Alice!"
 
-// 宏调用
-std::string msg2 = I18nVault_TR_FMT(I18nVault::I18nKey::DIALOG_DELETE_FMT, "photo.jpg");
+std::string msg2 = I18nVault_TR(I18nVault::I18nKey::DIALOG_DELETE_FMT, "photo.jpg");
 // => "Delete photo.jpg? This action cannot be undone."
+
+// 或直接调用方法
+std::string msg3 = mgr.translate(I18nVault::I18nKey::WELCOME_FMT, {"Alice"});
 ```
 
 ### 加载加密 TRS 文件
@@ -199,12 +201,11 @@ tools/
 |-----------|------|
 | `I18nManager::instance()` | 获取单例 |
 | `reload(path)` | 加载 .json 或 .trs 文件 |
-| `translate(key)` | 枚举 key → 本地化字符串 |
-| `translateFmt(key, {args...})` | 替换 `{0}` `{1}` 占位符 |
+| `translate(key)` | 普通翻译（args 默认为空） |
+| `translate(key, {args...})` | 翻译并替换 `{0}` `{1}` 占位符 |
 | `setTrsCryptoConfig({key_hex, aad})` | 设置 TRS 解密参数 |
 | `clearTrsCryptoConfig()` | 清除解密参数 |
-| `I18nVault_TR(key)` | 翻译便捷宏 |
-| `I18nVault_TR_FMT(key, ...)` | 格式化翻译便捷宏 |
+| `I18nVault_TR(key, ...)` | 统一便捷宏：无额外参数为普通翻译，有参数为格式化翻译 |
 
 ## 配置项
 

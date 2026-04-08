@@ -180,7 +180,7 @@ I18nManager& I18nManager::instance()
     return inst;
 }
 
-std::string I18nManager::translate(I18nKey key)
+std::string I18nManager::tr(I18nKey key)
 {
     std::shared_lock lock(pImpl_->mu);
     auto             it = pImpl_->data.find(i18n_keys_string(key));
@@ -189,9 +189,9 @@ std::string I18nManager::translate(I18nKey key)
     return "";
 }
 
-std::string I18nManager::translateFmt(I18nKey key, std::initializer_list<std::string> args)
+std::string I18nManager::translate(I18nKey key, std::initializer_list<std::string> args)
 {
-    std::string result = translate(key);
+    std::string result = tr(key);
     size_t      idx    = 0;
     for (const auto& arg : args)
     {
