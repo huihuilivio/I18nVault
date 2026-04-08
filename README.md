@@ -25,52 +25,22 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Build as shared library (default is static):
-
-```bash
-cmake -S . -B build -DBUILD_SHARED_LIBS=ON
-cmake --build build --config Release
-```
-
 ### Run Tests
 
 ```bash
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-### Install
-
-```bash
-cmake --install build --config Release --prefix /usr/local
-```
-
-### Package
-
-```bash
-cd build
-cpack -C Release
-# Output: I18nVault-1.0.0-<OS>-<Arch>.zip / .tar.gz / .deb
-```
-
 ## Integration
 
-### Option 1: CMake find_package
-
-After installing, add to your `CMakeLists.txt`:
-
-```cmake
-find_package(I18nVault REQUIRED)
-target_link_libraries(your_target PRIVATE I18nVault::I18nVaultCore)
-```
-
-### Option 2: add_subdirectory
-
-Add I18nVault as a subdirectory:
+Add I18nVault as a subdirectory in your UI project:
 
 ```cmake
 add_subdirectory(third_party/I18nVault)
-target_link_libraries(your_target PRIVATE I18nVaultCore)
+target_link_libraries(your_app PRIVATE I18nVaultCore)
 ```
+
+That's it. All compile-time translations are available immediately — no install step needed.
 
 ## Usage
 
@@ -168,11 +138,8 @@ mgr.clearTrsCryptoConfig();
 ## Project Structure
 
 ```
-CMakeLists.txt                          # Top-level: project settings + install + CPack
-cmake/
-  I18nVaultConfig.cmake.in              # find_package() template
+CMakeLists.txt                          # Top-level build configuration
 src/
-  CMakeLists.txt                        # I18nVaultCore library (static/shared)
   i18n_manager.h                        # Public header: compile-time + runtime API
   i18n_manager.cpp                      # Implementation (hot-reload, TRS decryption)
   crypto/                               # SM4-GCM crypto sources
@@ -183,53 +150,26 @@ i18n/
   zh_CN.json                            # Chinese locale
   *.trs                                 # Encrypted files (build-time generated)
 test/
-  CMakeLists.txt                        # Test target
   main.cpp                              # 33 tests: CT, FMT, runtime, TRS, hot-reload
 examples/
-  CMakeLists.txt                        # Example targets (optional: -DI18NVAULT_BUILD_EXAMPLES=OFF)
   i18n_demo.cpp                         # Concise feature demo
   compile_time_i18n_example.cpp         # Detailed compile-time examples
 tools/
-  CMakeLists.txt                        # CLI tools + build-time tasks
   gen_i18n_keys_constexpr.py            # Generates i18n_keys.h with compile-time i18n
-  gen_i18n_keys.py                      # Legacy enum-only generator
   i18n_diff_check.py                    # Multi-locale key consistency checker
-  i18n_diff_check_enhanced.py           # Enhanced checker (8+ quality rules)
   gen_trs_files.py                      # Batch TRS generation
-  trs_safety_manager.py                 # TRS integrity + version management
   encrypt_i18n.c                        # Encryption/decryption CLI
 docs/                                   # Documentation
-```
-
-## Install Layout
-
-```
-<prefix>/
-  include/I18nVault/
-    i18n_manager.h              # Public header
-    i18n_vault_export.h         # DLL export macros (auto-generated)
-  share/I18nVault/tools/
-    gen_i18n_keys.py            # Key enum generation script
-  lib/
-    I18nVaultCore.lib           # Core library (with crypto; static = full lib, shared = import lib)
-    cmake/I18nVault/
-      I18nVaultConfig.cmake
-      I18nVaultConfigVersion.cmake
-      I18nVaultTargets.cmake
-  bin/
-    i18n_crypto_cli             # Encryption/decryption CLI tool
-    I18nVaultCore.dll           # Shared library (BUILD_SHARED_LIBS=ON only)
 ```
 
 ## CMake Targets
 
 | Target | Type | Description |
 |--------|------|-------------|
-| `I18nVaultCore` | Static / Shared lib | Core i18n library (with SM4-GCM crypto, controlled by `BUILD_SHARED_LIBS`) |
+| `I18nVaultCore` | Static lib | Core i18n library (link this in your UI project) |
 | `i18n_crypto_cli` | Executable | JSON/TRS encryption/decryption CLI |
 | `i18n_test` | Executable | Test suite (33 tests) |
 | `i18n_demo` | Executable | Feature demo |
-| `i18n_compile_time_example` | Executable | Compile-time i18n examples |
 | `i18n_keys` | Custom | Generates `i18n_keys.h` (auto-runs on JSON change) |
 | `i18n_diff_check` | Custom | Key consistency validation |
 | `i18n_trs` | Custom | Build-time TRS generation |
@@ -270,9 +210,8 @@ docs/                                   # Documentation
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BUILD_SHARED_LIBS` | `OFF` | Set to `ON` to build I18nVaultCore as a shared library |
 | `I18NVAULT_BUILD_EXAMPLES` | `ON` | Set to `OFF` to skip building examples |
-| `I18N_TRS_KEY_HEX` | `00112233...FF` | 32-char hex SM4 key |
+| `I18N_TRS_KEY_HEX` | `00112233...FF` | 32-char hex SM4 key for TRS generation |
 | `I18N_TRS_AAD` | `i18n:v1` | Additional authenticated data |
 
 ### Runtime
@@ -313,31 +252,13 @@ GitHub Actions cross-platform matrix (Ubuntu / macOS / Windows), automatically r
 
 1. Strict key diff validation
 2. CMake build
-3. CTest tests
+3. CTest tests (33 cases)
 4. TRS artifact verification
 5. SM4-GCM encrypt/decrypt roundtrip verification
-6. cmake install artifact verification
-7. CPack packaging
-8. Upload packages as Actions artifacts
 
 ## License
 
 MIT
-
-## CI Design
-
-CI workflow at `.github/workflows/ci.yml`, matrix execution across:
-
-- ubuntu-latest
-- macos-latest
-- windows-latest
-
-Pipeline includes:
-
-1. Strict key diff validation
-2. CMake build
-3. CTest smoke tests
-4. TRS artifact existence check
 5. Decrypt roundtrip verification using build-produced TRS
 
 ## Related Documentation

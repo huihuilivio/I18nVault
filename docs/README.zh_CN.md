@@ -25,52 +25,22 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-构建动态库（默认静态库）：
-
-```bash
-cmake -S . -B build -DBUILD_SHARED_LIBS=ON
-cmake --build build --config Release
-```
-
 ### 运行测试
 
 ```bash
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-### 安装
-
-```bash
-cmake --install build --config Release --prefix /usr/local
-```
-
-### 打包
-
-```bash
-cd build
-cpack -C Release
-# 输出: I18nVault-1.0.0-<OS>-<Arch>.zip / .tar.gz / .deb
-```
-
-## 集成到你的项目
-
-### 方式一：CMake find_package
-
-安装后，在你的 `CMakeLists.txt` 中：
-
-```cmake
-find_package(I18nVault REQUIRED)
-target_link_libraries(your_target PRIVATE I18nVault::I18nVaultCore)
-```
-
-### 方式二：add_subdirectory
+## 集成到你的 UI 工程
 
 将 I18nVault 作为子目录添加：
 
 ```cmake
 add_subdirectory(third_party/I18nVault)
-target_link_libraries(your_target PRIVATE I18nVaultCore)
+target_link_libraries(your_app PRIVATE I18nVaultCore)
 ```
+
+编译期翻译即刻可用，无需安装步骤。
 
 ## 使用示例
 
@@ -185,48 +155,24 @@ test/
   CMakeLists.txt                        # 测试目标
   main.cpp                              # 33 项测试：CT、FMT、运行时、TRS、热更新
 examples/
-  CMakeLists.txt                        # 示例目标（可选：-DI18NVAULT_BUILD_EXAMPLES=OFF）
   i18n_demo.cpp                         # 简洁功能演示
   compile_time_i18n_example.cpp         # 详细编译期示例
 tools/
   gen_i18n_keys_constexpr.py            # 生成编译期 i18n_keys.h
   i18n_diff_check.py                    # 多语言 key 一致性校验
-  i18n_diff_check_enhanced.py           # 增强校验（8+ 规则）
   gen_trs_files.py                      # 批量生成 TRS
-  trs_safety_manager.py                 # TRS 完整性 + 版本管理
   encrypt_i18n.c                        # 加解密 CLI
 docs/                                   # 文档
-```
-
-## 安装产物布局
-
-```
-<prefix>/
-  include/I18nVault/
-    i18n_manager.h              # 公共头文件
-    i18n_vault_export.h         # DLL 导出宏（自动生成）
-  share/I18nVault/tools/
-    gen_i18n_keys.py            # key 枚举生成脚本
-  lib/
-    I18nVaultCore.lib           # 核心库（含加密，静态时为完整库，动态时为导入库）
-    cmake/I18nVault/
-      I18nVaultConfig.cmake
-      I18nVaultConfigVersion.cmake
-      I18nVaultTargets.cmake
-  bin/
-    i18n_crypto_cli             # 加解密 CLI 工具
-    I18nVaultCore.dll           # 动态库（仅 BUILD_SHARED_LIBS=ON 时）
 ```
 
 ## CMake 目标
 
 | 目标 | 类型 | 说明 |
 |------|------|------|
-| `I18nVaultCore` | 静态库 / 动态库 | i18n 核心库（含 SM4-GCM 加密，由 `BUILD_SHARED_LIBS` 控制） |
+| `I18nVaultCore` | 静态库 | i18n 核心库（在 UI 工程中 link 此目标） |
 | `i18n_crypto_cli` | 可执行 | JSON/TRS 加解密 CLI |
 | `i18n_test` | 可执行 | 测试套件（33 项测试） |
 | `i18n_demo` | 可执行 | 功能演示 |
-| `i18n_compile_time_example` | 可执行 | 编译期 i18n 示例 |
 | `i18n_keys` | 自定义 | 生成 `i18n_keys.h`（JSON 变化时自动重新运行） |
 | `i18n_diff_check` | 自定义 | key 一致性校验 |
 | `i18n_trs` | 自定义 | 构建期 TRS 生成 |
@@ -267,7 +213,6 @@ docs/                                   # 文档
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `BUILD_SHARED_LIBS` | `OFF` | 设为 `ON` 时将 I18nVaultCore 构建为动态库 |
 | `I18NVAULT_BUILD_EXAMPLES` | `ON` | 设为 `OFF` 跳过构建示例 |
 | `I18N_TRS_KEY_HEX` | `00112233...FF` | 32 hex 字符 SM4 密钥 |
 | `I18N_TRS_AAD` | `i18n:v1` | 附加认证数据 |
