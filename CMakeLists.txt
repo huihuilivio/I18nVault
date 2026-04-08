@@ -12,16 +12,21 @@ option(BUILD_SHARED_LIBS "Build I18nVaultCore as a shared library" OFF)
 # Put all binaries (exe + dll) in the same directory so tests find shared libs
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# ---- Auto-generate i18n_keys.h ----
+# ---- Auto-generate i18n_keys.h (with compile-time i18n support) ----
+# Uses gen_i18n_keys_constexpr.py for strong-typed keys and compile-time translation
+file(GLOB I18N_JSON_FILES "${CMAKE_SOURCE_DIR}/i18n/*.json")
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/generated/i18n_keys.h
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys.py
-            ${CMAKE_SOURCE_DIR}/i18n/en_US.json
-            ${CMAKE_BINARY_DIR}/generated/i18n_keys.h
-    DEPENDS ${CMAKE_SOURCE_DIR}/i18n/en_US.json
-            ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys_constexpr.py
+    DEPENDS ${I18N_JSON_FILES}
+            ${CMAKE_SOURCE_DIR}/tools/gen_i18n_keys_constexpr.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating i18n_keys.h with compile-time i18n support..."
+    VERBATIM
 )
 add_custom_target(i18n_keys ALL DEPENDS ${CMAKE_BINARY_DIR}/generated/i18n_keys.h)
+
+message(STATUS "i18n_keys.h generation: using gen_i18n_keys_constexpr.py (compile-time i18n)")
 
 # ---- Subdirectories ----
 add_subdirectory(tools)
