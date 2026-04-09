@@ -73,6 +73,10 @@ bool write_trs_file(const std::string& json_path, const std::string& trs_path, c
 int main()
 {
     namespace fs = std::filesystem;
+
+    // Ensure relative paths (i18n/, build/) resolve correctly regardless of CWD
+    fs::current_path(I18N_PROJECT_SOURCE_DIR);
+
     fs::create_directories(kTmpDir);
 
     auto& mgr = I18nVault::I18nManager::instance();
