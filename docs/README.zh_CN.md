@@ -10,9 +10,12 @@
 - 格式化翻译，支持 `{0}` `{1}` 占位符替换
 - 支持明文 JSON 与加密 TRS 两种加载格式
 - SM4-GCM 认证加密，防篡改
+- **动态语言切换**，支持可选回退语言
+- **语言切换回调**，便于 UI 在语言变更时刷新
 - 构建期自动校验多语言 key 一致性
 - 构建期自动生成 TRS 产物与枚举头文件
 - pImpl 隔离私有实现，公共头文件干净
+- 线程安全：shared_mutex 保护所有状态
 - CMake install + CPack 打包，支持 `find_package(I18nVault)`
 - 跨平台：Windows / macOS / Linux
 
@@ -82,8 +85,8 @@ target_link_libraries(your_target PRIVATE I18nVaultCore)
 // 获取单例
 auto& mgr = I18nVault::I18nManager::instance();
 
-// 加载 JSON 语言文件
-mgr.reload("i18n/en_US.json");
+// 加载语言
+mgr.addLanguage("en_US", "i18n/en_US.json");
 
 // 使用宏翻译
 std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
@@ -130,14 +133,55 @@ mgr.setTrsCryptoConfig({
     .aad     = "i18n:v1"                             // 附加认证数据
 });
 
-// 加载 TRS（自动解密）
-mgr.reload("i18n/zh_CN.trs");
+// 通过 addLanguage 加载 TRS（自动解密）
+mgr.addLanguage("zh_CN", "i18n/zh_CN.trs");
 
 // 翻译照常使用
 std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
 
 // 不再需要时清除密钥
 mgr.clearTrsCryptoConfig();
+```
+
+### 动态语言切换
+
+启动时加载多个语言，运行时随时切换。
+第一次调用 `addLanguage` 会自动将其设为活跃语言。
+
+```cpp
+auto& mgr = I18nVault::I18nManager::instance();
+
+// 加载语言（第一个自动成为活跃语言）
+mgr.addLanguage("en_US", "i18n/en_US.json");
+mgr.addLanguage("zh_CN", "i18n/zh_CN.json");
+
+// 可选：设置回退语言（当前语言缺少某 key 时使用）
+mgr.setFallbackLanguage("en_US");
+
+// 查询已加载的语言列表
+std::vector<std::string> langs = mgr.availableLanguages();
+// => ["en_US", "zh_CN"]
+
+// 注册语言切换回调
+size_t cbId = mgr.onLanguageChanged([](const std::string& locale) {
+    std::cout << "语言切换为：" << locale << std::endl;
+    // 例如：触发 UI 刷新
+});
+
+// 运行时切换语言
+mgr.setLanguage("zh_CN");            // 触发回调
+std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
+// => "登录"
+
+mgr.setLanguage("en_US");            // 触发回调
+text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
+// => "Login"
+
+// 不再需要时注销回调
+mgr.removeLanguageChangedCallback(cbId);
+
+// 移除语言（不能移除当前活跃语言）
+mgr.removeLanguage("zh_CN");
 ```
 
 ## 项目结构
@@ -206,15 +250,35 @@ tools/
 
 ## 公共 API
 
+### 翻译
+
 | 方法 / 宏 | 说明 |
 |-----------|------|
 | `I18nManager::instance()` | 获取单例 |
-| `reload(path)` | 加载 .json 或 .trs 文件 |
 | `translate(key)` | 普通翻译（args 默认为空） |
 | `translate(key, {args...})` | 翻译并替换 `{0}` `{1}` 占位符 |
-| `setTrsCryptoConfig({key_hex, aad})` | 设置 TRS 解密参数 |
-| `clearTrsCryptoConfig()` | 清除解密参数 |
-| `I18nVault_TR(key, ...)` | 统一便捷宏：无额外参数为普通翻译，有参数为格式化翻译 |
+| `I18nVault_TR(key, ...)` | 统一便捷宏：无参为普通翻译，有参为格式化翻译 |
+
+### 语言管理
+
+| 方法 | 说明 |
+|------|------|
+| `addLanguage(locale, path)` | 加载语言文件并注册。首次调用自动激活。 |
+| `setLanguage(locale)` | 切换活跃语言（必须已加载）。触发回调。 |
+| `currentLanguage()` | 返回当前活跃 locale（未设置时为空）。 |
+| `setFallbackLanguage(locale)` | 设置缺失 key 时使用的回退语言。 |
+| `fallbackLanguage()` | 返回当前回退 locale。 |
+| `availableLanguages()` | 列出所有已加载的 locale 名称。 |
+| `removeLanguage(locale)` | 卸载语言（当前活跃语言无法卸载）。 |
+| `onLanguageChanged(callback)` | 注册回调；返回 ID（0 表示失败）。 |
+| `removeLanguageChangedCallback(id)` | 按 ID 注销回调。 |
+
+### TRS 加密
+
+| 方法 | 说明 |
+|------|------|
+| `setTrsCryptoConfig({key_hex, aad})` | 设置 TRS 解密参数。 |
+| `clearTrsCryptoConfig()` | 安全清除解密参数。 |
 
 ## 配置项
 

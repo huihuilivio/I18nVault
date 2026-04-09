@@ -4,6 +4,7 @@
 #include "i18n_manager.h"
 #include "nlohmann/json.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -76,9 +77,17 @@ int main()
 
     auto& mgr = I18nVault::I18nManager::instance();
 
-    if (!mgr.reload("i18n/en_US.json"))
+    // ---- Basic Translation Tests (addLanguage) ----
+
+    if (!mgr.addLanguage("en_US", "i18n/en_US.json"))
     {
-        std::cerr << "[FAIL] reload en_US.json failed" << std::endl;
+        std::cerr << "[FAIL] addLanguage en_US failed" << std::endl;
+        return 1;
+    }
+    // First addLanguage auto-activates
+    if (mgr.currentLanguage() != "en_US")
+    {
+        std::cerr << "[FAIL] currentLanguage after first addLanguage, got: " << mgr.currentLanguage() << std::endl;
         return 1;
     }
     if (mgr.translate(I18nVault::I18nKey::LOGIN_BUTTON) != "Login")
@@ -109,16 +118,18 @@ int main()
         return 1;
     }
 
+    // ---- Missing key validation ----
     {
         std::ofstream out(kTmpMissingJson, std::ios::binary);
         out << "{\"LOGIN_BUTTON\":\"OnlyOne\"}";
     }
-    if (mgr.reload(kTmpMissingJson))
+    if (mgr.addLanguage("bad", kTmpMissingJson))
     {
-        std::cerr << "[FAIL] missing-key json should fail on first-load validation" << std::endl;
+        std::cerr << "[FAIL] missing-key json should fail validation" << std::endl;
         return 1;
     }
 
+    // ---- TRS encrypted file tests ----
     const std::string key_hex = "00112233445566778899AABBCCDDEEFF";
     const std::string aad     = "i18n:v1";
     if (!write_trs_file(kZhJsonPath, kTmpTrs, key_hex, aad))
@@ -132,37 +143,219 @@ int main()
         std::cerr << "[FAIL] setTrsCryptoConfig failed" << std::endl;
         return 1;
     }
-    if (!mgr.reload(kTmpTrs))
+    if (!mgr.addLanguage("zh_CN_trs", kTmpTrs))
     {
-        std::cerr << "[FAIL] reload trs failed with correct key/aad" << std::endl;
+        std::cerr << "[FAIL] addLanguage trs failed with correct key/aad" << std::endl;
         return 1;
     }
 
+    // Verify TRS-loaded data matches original JSON
     nlohmann::json zh_json;
     {
         std::ifstream zh_in(kZhJsonPath);
         zh_in >> zh_json;
     }
+    if (!mgr.setLanguage("zh_CN_trs"))
+    {
+        std::cerr << "[FAIL] setLanguage zh_CN_trs failed" << std::endl;
+        return 1;
+    }
     if (mgr.translate(I18nVault::I18nKey::LOGIN_BUTTON) != zh_json["LOGIN_BUTTON"].get<std::string>())
     {
-        std::cerr << "[FAIL] LOGIN_BUTTON translation mismatch after trs reload" << std::endl;
+        std::cerr << "[FAIL] LOGIN_BUTTON translation mismatch after trs load" << std::endl;
         return 1;
     }
 
+    // TRS with wrong key must fail
     if (!mgr.setTrsCryptoConfig({"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", aad}))
     {
         std::cerr << "[FAIL] setting wrong-key config should still be syntactically valid" << std::endl;
         return 1;
     }
-    if (mgr.reload(kTmpTrs))
+    if (mgr.addLanguage("zh_CN_bad", kTmpTrs))
     {
-        std::cerr << "[FAIL] trs reload should fail with wrong key" << std::endl;
+        std::cerr << "[FAIL] trs addLanguage should fail with wrong key" << std::endl;
         return 1;
     }
 
     mgr.clearTrsCryptoConfig();
+    if (!mgr.setLanguage("en_US"))
+    {
+        std::cerr << "[FAIL] setLanguage en_US before cleanup failed" << std::endl;
+        return 1;
+    }
+    mgr.removeLanguage("zh_CN_trs");
     fs::remove(kTmpTrs);
     fs::remove(kTmpMissingJson);
+
+    // ---- Language Management Tests ----
+
+    if (!mgr.addLanguage("zh_CN", "i18n/zh_CN.json"))
+    {
+        std::cerr << "[FAIL] addLanguage zh_CN failed" << std::endl;
+        return 1;
+    }
+
+    // currentLanguage: still en_US (first addLanguage, not replaced by subsequent ones)
+    if (mgr.currentLanguage() != "en_US")
+    {
+        std::cerr << "[FAIL] currentLanguage after second addLanguage, got: " << mgr.currentLanguage() << std::endl;
+        return 1;
+    }
+    if (mgr.translate(I18nVault::I18nKey::LOGIN_BUTTON) != "Login")
+    {
+        std::cerr << "[FAIL] LOGIN_BUTTON en_US mismatch after addLanguage" << std::endl;
+        return 1;
+    }
+
+    // setLanguage: switch to zh_CN
+    if (!mgr.setLanguage("zh_CN"))
+    {
+        std::cerr << "[FAIL] setLanguage zh_CN failed" << std::endl;
+        return 1;
+    }
+    if (mgr.currentLanguage() != "zh_CN")
+    {
+        std::cerr << "[FAIL] currentLanguage after setLanguage, got: " << mgr.currentLanguage() << std::endl;
+        return 1;
+    }
+    if (mgr.translate(I18nVault::I18nKey::LOGIN_BUTTON) != "\xe7\x99\xbb\xe5\xbd\x95" /* 登录 */)
+    {
+        std::cerr << "[FAIL] LOGIN_BUTTON zh_CN mismatch" << std::endl;
+        return 1;
+    }
+    if (mgr.translate(I18nVault::I18nKey::WELCOME_FMT, {"世界"}) != "\xe6\xac\xa2\xe8\xbf\x8e, \xe4\xb8\x96\xe7\x95\x8c!" /* 欢迎, 世界! */)
+    {
+        std::cerr << "[FAIL] WELCOME_FMT zh_CN placeholder mismatch" << std::endl;
+        return 1;
+    }
+
+    // availableLanguages: must include en_US and zh_CN
+    {
+        auto langs  = mgr.availableLanguages();
+        bool has_en = std::find(langs.begin(), langs.end(), "en_US") != langs.end();
+        bool has_zh = std::find(langs.begin(), langs.end(), "zh_CN") != langs.end();
+        if (!has_en || !has_zh)
+        {
+            std::cerr << "[FAIL] availableLanguages missing expected locales" << std::endl;
+            return 1;
+        }
+    }
+
+    // setFallbackLanguage
+    if (!mgr.setFallbackLanguage("en_US"))
+    {
+        std::cerr << "[FAIL] setFallbackLanguage en_US failed" << std::endl;
+        return 1;
+    }
+    if (mgr.fallbackLanguage() != "en_US")
+    {
+        std::cerr << "[FAIL] fallbackLanguage() mismatch" << std::endl;
+        return 1;
+    }
+
+    // setFallbackLanguage with unknown locale must fail
+    if (mgr.setFallbackLanguage("fr_FR"))
+    {
+        std::cerr << "[FAIL] setFallbackLanguage unknown locale should fail" << std::endl;
+        return 1;
+    }
+
+    // setLanguage with unknown locale must fail
+    if (mgr.setLanguage("fr_FR"))
+    {
+        std::cerr << "[FAIL] setLanguage unknown locale should fail" << std::endl;
+        return 1;
+    }
+    // current locale unchanged after failure
+    if (mgr.currentLanguage() != "zh_CN")
+    {
+        std::cerr << "[FAIL] currentLanguage changed after failed setLanguage" << std::endl;
+        return 1;
+    }
+
+    // removeLanguage: cannot remove current locale
+    if (mgr.removeLanguage("zh_CN"))
+    {
+        std::cerr << "[FAIL] removeLanguage current locale should fail" << std::endl;
+        return 1;
+    }
+
+    // removeLanguage: removing fallback locale clears fallbackLocale
+    // (temporarily set zh_CN as current so en_US can be removed)
+    // zh_CN is already current; remove en_US (the fallback) — should succeed and clear fallback
+    if (!mgr.removeLanguage("en_US"))
+    {
+        std::cerr << "[FAIL] removeLanguage en_US (fallback) failed" << std::endl;
+        return 1;
+    }
+    if (!mgr.fallbackLanguage().empty())
+    {
+        std::cerr << "[FAIL] fallbackLocale should be cleared after its locale is removed" << std::endl;
+        return 1;
+    }
+    // Restore en_US for subsequent tests
+    if (!mgr.addLanguage("en_US", "i18n/en_US.json"))
+    {
+        std::cerr << "[FAIL] re-addLanguage en_US failed" << std::endl;
+        return 1;
+    }
+
+    // onLanguageChanged: callback fires on switch
+    std::string cb_locale;
+    size_t      cb_id = mgr.onLanguageChanged([&cb_locale](const std::string& locale) { cb_locale = locale; });
+    if (cb_id == 0)
+    {
+        std::cerr << "[FAIL] onLanguageChanged returned 0 (invalid ID)" << std::endl;
+        return 1;
+    }
+
+    if (!mgr.setLanguage("en_US"))
+    {
+        std::cerr << "[FAIL] setLanguage en_US failed" << std::endl;
+        return 1;
+    }
+    if (cb_locale != "en_US")
+    {
+        std::cerr << "[FAIL] language change callback not invoked, got: '" << cb_locale << "'" << std::endl;
+        return 1;
+    }
+
+    // setLanguage same locale: callback must NOT fire
+    cb_locale.clear();
+    mgr.setLanguage("en_US");
+    if (!cb_locale.empty())
+    {
+        std::cerr << "[FAIL] callback should not fire when locale is already active" << std::endl;
+        return 1;
+    }
+
+    // removeLanguageChangedCallback: no callback after unregister
+    mgr.removeLanguageChangedCallback(cb_id);
+    cb_locale.clear();
+    if (!mgr.setLanguage("zh_CN"))
+    {
+        std::cerr << "[FAIL] setLanguage zh_CN after unregister failed" << std::endl;
+        return 1;
+    }
+    if (!cb_locale.empty())
+    {
+        std::cerr << "[FAIL] callback fired after removeLanguageChangedCallback" << std::endl;
+        return 1;
+    }
+
+    // addLanguage: reload existing locale updates its translations in-place
+    if (!mgr.addLanguage("zh_CN", "i18n/zh_CN.json"))
+    {
+        std::cerr << "[FAIL] re-addLanguage zh_CN (update) failed" << std::endl;
+        return 1;
+    }
+    if (mgr.currentLanguage() != "zh_CN")
+    {
+        std::cerr << "[FAIL] currentLanguage changed unexpectedly after re-addLanguage" << std::endl;
+        return 1;
+    }
+
     std::cout << "[OK] all i18n manager tests passed" << std::endl;
     return 0;
 }

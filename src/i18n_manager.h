@@ -2,9 +2,11 @@
 #include "i18n_keys.h"
 #include "i18n_vault_export.h"
 
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace I18nVault
 {
@@ -20,10 +22,42 @@ public:
         std::string aad;
     };
 
+    using LanguageChangedCallback = std::function<void(const std::string& newLocale)>;
+
     static I18nManager& instance();
 
-    /// Load or reload an i18n file (.json or .trs).
-    bool reload(const std::string& path);
+    // ---- Language Management ----
+
+    /// Load a language file and register it under the given locale name.
+    /// Example: addLanguage("en_US", "i18n/en_US.json")
+    bool addLanguage(const std::string& locale, const std::string& path);
+
+    /// Remove a previously loaded language. Cannot remove the current language.
+    bool removeLanguage(const std::string& locale);
+
+    /// Switch to a previously loaded language.
+    bool setLanguage(const std::string& locale);
+
+    /// Get the current active language locale (empty if none set).
+    std::string currentLanguage() const;
+
+    /// Set a fallback language for missing keys. Must be a loaded locale.
+    bool setFallbackLanguage(const std::string& locale);
+
+    /// Get the fallback language locale (empty if none set).
+    std::string fallbackLanguage() const;
+
+    /// Get list of all loaded language locales.
+    std::vector<std::string> availableLanguages() const;
+
+    /// Register a callback invoked when the active language changes.
+    /// Returns an ID that can be used to unregister.
+    size_t onLanguageChanged(LanguageChangedCallback callback);
+
+    /// Unregister a language-changed callback by ID.
+    void removeLanguageChangedCallback(size_t id);
+
+    // ---- Translation ----
 
     /// Translate an enum key, replacing {0}, {1}, ... with given arguments.
     std::string translate(I18nKey key, std::initializer_list<std::string> args = {});

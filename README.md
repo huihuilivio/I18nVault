@@ -10,9 +10,12 @@ A lightweight C++ internationalization library supporting both plain JSON and SM
 - Formatted translations with `{0}` `{1}` placeholder substitution
 - Dual format: plain JSON and encrypted TRS
 - SM4-GCM authenticated encryption, tamper-proof
+- **Dynamic language switching** with optional fallback locale
+- **Language change callbacks** for UI refresh on locale switch
 - Build-time i18n key consistency validation across locales
 - Build-time auto-generation of TRS files and enum header
 - pImpl idiom keeps public headers clean
+- Thread-safe: shared_mutex protects all state
 - CMake install + CPack packaging, supports `find_package(I18nVault)`
 - Cross-platform: Windows / macOS / Linux
 
@@ -82,8 +85,8 @@ target_link_libraries(your_target PRIVATE I18nVaultCore)
 // Get the singleton
 auto& mgr = I18nVault::I18nManager::instance();
 
-// Load a JSON locale file
-mgr.reload("i18n/en_US.json");
+// Load a language
+mgr.addLanguage("en_US", "i18n/en_US.json");
 
 // Translate using the macro
 std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
@@ -130,14 +133,55 @@ mgr.setTrsCryptoConfig({
     .aad     = "i18n:v1"                             // Additional authenticated data
 });
 
-// Load TRS (auto-decrypts)
-mgr.reload("i18n/zh_CN.trs");
+// Load TRS via addLanguage (auto-decrypts)
+mgr.addLanguage("zh_CN", "i18n/zh_CN.trs");
 
 // Translation works as usual
 std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
 
 // Clear key material when no longer needed
 mgr.clearTrsCryptoConfig();
+```
+
+### Dynamic Language Switching
+
+Load multiple locales at startup and switch between them at runtime.
+The first `addLanguage` call automatically becomes the active locale.
+
+```cpp
+auto& mgr = I18nVault::I18nManager::instance();
+
+// Load languages (first one becomes active automatically)
+mgr.addLanguage("en_US", "i18n/en_US.json");
+mgr.addLanguage("zh_CN", "i18n/zh_CN.json");
+
+// Optionally set a fallback for missing keys
+mgr.setFallbackLanguage("en_US");
+
+// Query available locales
+std::vector<std::string> langs = mgr.availableLanguages();
+// => ["en_US", "zh_CN"]
+
+// Register a callback fired when the active language changes
+size_t cbId = mgr.onLanguageChanged([](const std::string& locale) {
+    std::cout << "Language switched to: " << locale << std::endl;
+    // e.g. trigger a UI refresh here
+});
+
+// Switch locale at runtime
+mgr.setLanguage("zh_CN");            // callback fires
+std::string text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
+// => "登录"
+
+mgr.setLanguage("en_US");            // callback fires
+text = I18nVault_TR(I18nVault::I18nKey::LOGIN_BUTTON);
+// => "Login"
+
+// Unregister callback when no longer needed
+mgr.removeLanguageChangedCallback(cbId);
+
+// Remove a locale (cannot remove the currently active one)
+mgr.removeLanguage("zh_CN");
 ```
 
 ## Project Structure
@@ -206,15 +250,35 @@ tools/
 
 ## Public API
 
+### Translation
+
 | Method / Macro | Description |
 |----------------|-------------|
 | `I18nManager::instance()` | Get the singleton |
-| `reload(path)` | Load a .json or .trs file |
 | `translate(key)` | Basic translation (no arguments) |
 | `translate(key, {args...})` | Translate with `{0}` `{1}` placeholder substitution |
-| `setTrsCryptoConfig({key_hex, aad})` | Set TRS decryption parameters |
-| `clearTrsCryptoConfig()` | Clear decryption parameters |
-| `I18nVault_TR(key, ...)` | Convenience macro: plain translation without extra args, formatted translation with args |
+| `I18nVault_TR(key, ...)` | Convenience macro: `translate()` without / with format args |
+
+### Language Management
+
+| Method | Description |
+|--------|-------------|
+| `addLanguage(locale, path)` | Load a locale file (.json/.trs) and register it. First call auto-activates. |
+| `setLanguage(locale)` | Switch active locale (must be previously loaded). Fires callbacks. |
+| `currentLanguage()` | Return the active locale string (empty if none). |
+| `setFallbackLanguage(locale)` | Set fallback locale for missing keys. |
+| `fallbackLanguage()` | Return the current fallback locale string. |
+| `availableLanguages()` | List all loaded locale names. |
+| `removeLanguage(locale)` | Unload a locale (fails if it is currently active). |
+| `onLanguageChanged(callback)` | Register a callback; returns an ID (0 means failure). |
+| `removeLanguageChangedCallback(id)` | Unregister a callback by ID. |
+
+### TRS Encryption
+
+| Method | Description |
+|--------|-------------|
+| `setTrsCryptoConfig({key_hex, aad})` | Set TRS decryption parameters. |
+| `clearTrsCryptoConfig()` | Wipe and clear decryption parameters. |
 
 ## Configuration
 
